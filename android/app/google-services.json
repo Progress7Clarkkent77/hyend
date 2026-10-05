@@ -1,0 +1,143 @@
+{
+  "project_info": {
+    "project_number": "248321400997",
+    "project_id": "the-splendid-market",
+    "storage_bucket": "the-splendid-market.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:248321400997:android:3b17f427d56170c66bad4c",
+        "android_client_info": {
+          "package_name": "com.homeo.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBF_GwtlL12E0gw9kQdvVoKQF98PqQ35ms"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:248321400997:android:8ecc19b7eaca42ea6bad4c",
+        "android_client_info": {
+          "package_name": "com.hyend.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBF_GwtlL12E0gw9kQdvVoKQF98PqQ35ms"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:248321400997:android:0e2154772bffe6af6bad4c",
+        "android_client_info": {
+          "package_name": "com.realstore.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBF_GwtlL12E0gw9kQdvVoKQF98PqQ35ms"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:248321400997:android:3eb2422937f263b66bad4c",
+        "android_client_info": {
+          "package_name": "com.spiiiq.social"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBF_GwtlL12E0gw9kQdvVoKQF98PqQ35ms"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:248321400997:android:79ef11a1211ba9bc6bad4c",
+        "android_client_info": {
+          "package_name": "com.textido.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBF_GwtlL12E0gw9kQdvVoKQF98PqQ35ms"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:248321400997:android:63957e7d6beba6136bad4c",
+        "android_client_info": {
+          "package_name": "com.textido.social"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBF_GwtlL12E0gw9kQdvVoKQF98PqQ35ms"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:248321400997:android:c03f017a009493c36bad4c",
+        "android_client_info": {
+          "package_name": "com.textido.textido"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBF_GwtlL12E0gw9kQdvVoKQF98PqQ35ms"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
