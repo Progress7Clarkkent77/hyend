@@ -1,28 +1,47 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:hyend/userAuth/authController.dart';
 
-/// Stores the theme choice locally on the device. No login or cloud needed.
 class ThemeController extends GetxController {
-  static const _key = 'isDarkMode';
-  final GetStorage _box = GetStorage();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final AuthController _auth = Get.find<AuthController>();
 
-  /// Light mode is the default.
-  final RxBool isDarkMode = false.obs;
+  final isDarkMode = false.obs;
 
-  ThemeMode get themeMode =>
-      isDarkMode.value ? ThemeMode.dark : ThemeMode.light;
+  String get uid => _auth.currentUser!.uid;
 
-  @override
-  void onInit() {
-    super.onInit();
-    isDarkMode.value = _box.read<bool>(_key) ?? false;
+  /// 🔹 Load theme when user logs in
+  Future<void> loadTheme() async {
+    final doc = await _firestore.collection('e-users').doc(uid).get();
+
+    if (!doc.exists) return;
+
+    final theme = doc.data()?['theme'];
+
+    if (theme == 'dark') {
+      isDarkMode.value = true;
+    } else {
+      isDarkMode.value = false;
+    }
   }
 
-  /// Only called by the user pressing the theme button.
-  Future<void> toggle() async {
-    isDarkMode.value = !isDarkMode.value;
-    Get.changeThemeMode(themeMode);
-    await _box.write(_key, isDarkMode.value);
+  /// 🔹 Set DARK mode & save
+  Future<void> setDark() async {
+    isDarkMode.value = true;
+
+    await _firestore.collection('e-users').doc(uid).set({
+      'theme': 'dark',
+    }, SetOptions(merge: true));
+  }
+
+  /// 🔹 Set LIGHT mode & save
+  Future<void> setLight() async {
+    isDarkMode.value = false;
+
+    await _firestore.collection('e-users').doc(uid).set({
+      'theme': 'light',
+    }, SetOptions(merge: true));
   }
 }

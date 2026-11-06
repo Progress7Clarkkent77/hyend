@@ -41,7 +41,13 @@ class HomePage extends StatelessWidget {
                         const Spacer(),
                         Obx(
                           () => IconButton(
-                            onPressed: themeCtrl.toggle,
+                            onPressed: () {
+                              final isDark = !themeCtrl.isDarkMode.value;
+                              themeCtrl.isDarkMode.value = isDark;
+                              Get.changeThemeMode(
+                                isDark ? ThemeMode.dark : ThemeMode.light,
+                              );
+                            },
                             icon: Icon(
                               themeCtrl.isDarkMode.value
                                   ? Icons.light_mode_outlined
