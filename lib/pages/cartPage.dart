@@ -232,7 +232,7 @@ class CartPage extends StatelessWidget {
   }
 
   /// Size / weight / length as small pills under the product name.
-  Widget _specChips(StorePalette p, ProductModel product) {
+  Widget _specChips(StorePalette p, CartItemModel item) {
     Widget chip(IconData icon, String label, String value) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
@@ -277,12 +277,10 @@ class CartPage extends StatelessWidget {
       spacing: 6,
       runSpacing: 6,
       children: [
-        if (product.hasSize)
-          chip(Icons.aspect_ratio_rounded, 'Size', product.size),
-        if (product.hasWeight)
-          chip(Icons.scale_outlined, 'Weight', product.weight),
-        if (product.hasLength)
-          chip(Icons.straighten_rounded, 'Length', product.length),
+        if (item.hasSize) chip(Icons.aspect_ratio_rounded, 'Size', item.size),
+        if (item.hasWeight) chip(Icons.scale_outlined, 'Weight', item.weight),
+        if (item.hasLength)
+          chip(Icons.straighten_rounded, 'Length', item.length),
       ],
     );
   }
@@ -362,9 +360,9 @@ class CartPage extends StatelessWidget {
                   const SizedBox(height: 6),
                   _colorTag(p, item),
                 ],
-                if (product.hasSpecs) ...[
+                if (item.hasSpecs) ...[
                   const SizedBox(height: 6),
-                  _specChips(p, product),
+                  _specChips(p, item),
                 ],
                 const SizedBox(height: 4),
                 Text(

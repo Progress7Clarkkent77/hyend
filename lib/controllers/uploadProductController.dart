@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hyend/controllers/storeConfig.dart';
+import 'package:hyend/models/productModel.dart';
 import 'package:image_picker/image_picker.dart';
 
 //==================================================
@@ -80,11 +81,16 @@ class UploadProductController extends GetxController {
   /// Minimum quantity per cart. Empty = 1 (no minimum).
   final TextEditingController minOrderCtrl = TextEditingController();
 
-  /// Optional specs (free text), e.g. "XL", "2 kg", "120 cm".
-  static const int maxSpecLength = 40;
+  /// Optional choices the customer picks from. Type one or several separated
+  /// by commas ("S, M, L") and tap add; typed text that was not added yet is
+  /// added when the product is uploaded.
   final TextEditingController sizeCtrl = TextEditingController();
   final TextEditingController weightCtrl = TextEditingController();
   final TextEditingController lengthCtrl = TextEditingController();
+
+  final RxList<String> sizes = <String>[].obs;
+  final RxList<String> weights = <String>[].obs;
+  final RxList<String> lengths = <String>[].obs;
 
   /// Delivery inside Enugu State.
   final TextEditingController deliveryFeeEnuguCtrl = TextEditingController();
@@ -209,6 +215,30 @@ class UploadProductController extends GetxController {
     }
   }
 
+  //==================================================
+  // SIZE / WEIGHT / LENGTH OPTIONS
+  //==================================================
+
+  /// Moves what is typed in [input] into [target]. Shows why when it fails.
+  bool addOption(RxList<String> target, TextEditingController input) {
+    if (input.text.trim().isEmpty) return true;
+
+    final error = ProductModel.addOptions(target, input.text);
+
+    if (error != null) {
+      Get.snackbar('Options', error);
+      return false;
+    }
+
+    input.clear();
+    return true;
+  }
+
+  bool _commitPendingOptions() =>
+      addOption(sizes, sizeCtrl) &&
+      addOption(weights, weightCtrl) &&
+      addOption(lengths, lengthCtrl);
+
   void setImageColor(int index, ImageColorTag tag) {
     if (index < 0 || index >= selectedColors.length) return;
     selectedColors[index] = tag;
@@ -285,21 +315,9 @@ class UploadProductController extends GetxController {
       return false;
     }
 
-    // size / weight / length (all optional)
-    final specs = {
-      'Size': sizeCtrl.text.trim(),
-      'Weight': weightCtrl.text.trim(),
-      'Length': lengthCtrl.text.trim(),
-    };
-    for (final entry in specs.entries) {
-      if (entry.value.length > maxSpecLength) {
-        Get.snackbar(
-          entry.key,
-          '${entry.key} must be $maxSpecLength characters or fewer',
-        );
-        return false;
-      }
-    }
+    // size / weight / length choices (optional) — text typed but not added
+    // yet is added now
+    if (!_commitPendingOptions()) return false;
 
     // minimum order quantity (optional, empty = 1)
     final minText = minOrderCtrl.text.trim();
@@ -367,10 +385,14 @@ class UploadProductController extends GetxController {
         'stock': int.tryParse(stockCtrl.text.trim()) ?? 0,
         'minOrderQuantity': int.tryParse(minOrderCtrl.text.trim()) ?? 1,
 
-        // Optional specs ('' = not set)
-        'size': sizeCtrl.text.trim(),
-        'weight': weightCtrl.text.trim(),
-        'length': lengthCtrl.text.trim(),
+        // Optional choices the customer can pick from
+        'sizes': sizes.toList(),
+        'weights': weights.toList(),
+        'lengths': lengths.toList(),
+        // single-text copies, kept so older screens keep working
+        'size': sizes.join(', '),
+        'weight': weights.join(', '),
+        'length': lengths.join(', '),
 
         // Images + the colour of each image (same order)
         'images': imageBase64List.toList(),
@@ -400,6 +422,9 @@ class UploadProductController extends GetxController {
     sizeCtrl.clear();
     weightCtrl.clear();
     lengthCtrl.clear();
+    sizes.clear();
+    weights.clear();
+    lengths.clear();
     deliveryFeeEnuguCtrl.clear();
     deliveryFeeOutsideCtrl.clear();
 

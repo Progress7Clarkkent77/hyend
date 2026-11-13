@@ -68,19 +68,17 @@ class ManageProductsController extends GetxController {
     }
   }
 
-  static const int maxSpecLength = 40;
-
-  /// Saves minimum order quantity (1 = no minimum) plus size, weight and
-  /// length ('' = not set) for one product. Returns true on success.
+  /// Saves minimum order quantity (1 = store default) plus the size, weight
+  /// and length choices for one product. Returns true on success.
   ///
   /// Uses update(), so products uploaded before these fields existed get
   /// them created the first time they are saved.
   Future<bool> updateProductDetails(
     ProductModel product, {
     required int minOrder,
-    required String size,
-    required String weight,
-    required String length,
+    required List<String> sizes,
+    required List<String> weights,
+    required List<String> lengths,
   }) async {
     if (minOrder < 1) {
       Get.snackbar('Minimum order', 'Minimum order must be 1 or more');
@@ -96,13 +94,11 @@ class ManageProductsController extends GetxController {
       return false;
     }
 
-    final specs = {'Size': size, 'Weight': weight, 'Length': length};
-    for (final entry in specs.entries) {
-      if (entry.value.length > maxSpecLength) {
-        Get.snackbar(
-          entry.key,
-          '${entry.key} must be $maxSpecLength characters or fewer',
-        );
+    final groups = {'Sizes': sizes, 'Weights': weights, 'Lengths': lengths};
+    for (final entry in groups.entries) {
+      if (entry.value.length > ProductModel.maxOptions ||
+          entry.value.any((e) => e.length > ProductModel.maxOptionLength)) {
+        Get.snackbar(entry.key, 'Too many or too long options');
         return false;
       }
     }
@@ -110,9 +106,13 @@ class ManageProductsController extends GetxController {
     try {
       await _productsRef.doc(product.id).update({
         'minOrderQuantity': minOrder,
-        'size': size,
-        'weight': weight,
-        'length': length,
+        'sizes': sizes,
+        'weights': weights,
+        'lengths': lengths,
+        // single-text copies, kept so older screens keep working
+        'size': sizes.join(', '),
+        'weight': weights.join(', '),
+        'length': lengths.join(', '),
       });
       return true;
     } catch (e) {

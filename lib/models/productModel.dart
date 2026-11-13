@@ -114,12 +114,12 @@ class ProductModel {
   /// E.g. 10 means 1–9 units can't be added.
   final int minOrderQuantity;
 
-  /// Optional specs, entered as free text so they suit any product,
-  /// e.g. size "XL" / "42", weight "2 kg", length "120 cm".
-  /// Empty string = not set.
-  final String size;
-  final String weight;
-  final String length;
+  /// Choices the customer picks from, entered as free text so they suit any
+  /// product, e.g. sizes ["S", "M", "L"], weights ["1 kg", "2 kg"], lengths
+  /// ["120 cm"]. Empty list = not offered.
+  final List<String> sizes;
+  final List<String> weights;
+  final List<String> lengths;
 
   final bool isActive;
   final DateTime? createdAt;
@@ -136,9 +136,9 @@ class ProductModel {
     required this.deliveryFee,
     required this.stock,
     this.minOrderQuantity = 1,
-    this.size = '',
-    this.weight = '',
-    this.length = '',
+    this.sizes = const [],
+    this.weights = const [],
+    this.lengths = const [],
     required this.isActive,
     this.createdAt,
     this.imageColors = const [],
@@ -170,11 +170,95 @@ class ProductModel {
       stock: data['stock'] ?? 0,
       // older products have no minimum, so they default to 1
       minOrderQuantity: _readMinOrder(data['minOrderQuantity']),
-      size: (data['size'] ?? '').toString().trim(),
-      weight: (data['weight'] ?? '').toString().trim(),
-      length: (data['length'] ?? '').toString().trim(),
+      // products saved before multiple options only have a single text value
+      sizes: _readOptions(data['sizes'], data['size']),
+      weights: _readOptions(data['weights'], data['weight']),
+      lengths: _readOptions(data['lengths'], data['length']),
       isActive: data['isActive'] ?? true,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+    );
+  }
+
+  static List<String> _readOptions(dynamic list, dynamic legacy) {
+    final out = <String>[];
+
+    void add(String raw) {
+      final s = raw.trim();
+      if (s.isEmpty) return;
+      if (out.any((o) => o.toLowerCase() == s.toLowerCase())) return;
+      out.add(s);
+    }
+
+    if (list is List) {
+      for (final e in list) {
+        add(e.toString());
+      }
+    }
+
+    if (out.isEmpty) add((legacy ?? '').toString());
+
+    return out;
+  }
+
+  /// Most options one product can offer per group, and the longest option.
+  static const int maxOptions = 20;
+  static const int maxOptionLength = 40;
+
+  /// Adds the comma-separated [raw] text ("S, M, L") to [target], skipping
+  /// duplicates. Returns an error message, or null when it worked. Nothing is
+  /// added when there is an error.
+  static String? addOptions(List<String> target, String raw) {
+    final parts = raw
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+
+    final toAdd = <String>[];
+
+    for (final part in parts) {
+      if (part.length > maxOptionLength) {
+        return 'Each option must be $maxOptionLength characters or fewer';
+      }
+
+      final exists =
+          target.any((o) => o.toLowerCase() == part.toLowerCase()) ||
+          toAdd.any((o) => o.toLowerCase() == part.toLowerCase());
+
+      if (!exists) toAdd.add(part);
+    }
+
+    if (target.length + toAdd.length > maxOptions) {
+      return 'You can add up to $maxOptions options';
+    }
+
+    target.addAll(toAdd);
+    return null;
+  }
+
+  /// Copy of this product narrowed to the choice the customer made, so the
+  /// cart, checkout and orders show "Size: XL" instead of every size.
+  ProductModel withSelection({String? size, String? weight, String? length}) {
+    return ProductModel(
+      id: id,
+      name: name,
+      description: description,
+      images: images,
+      category: category,
+      price: regularPrice,
+      originalPrice: originalPrice,
+      blackFridayPercent: blackFridayPercent,
+      deliveryFee: deliveryFee,
+      stock: stock,
+      minOrderQuantity: minOrderQuantity,
+      sizes: size == null ? sizes : [size],
+      weights: weight == null ? weights : [weight],
+      lengths: length == null ? lengths : [length],
+      isActive: isActive,
+      createdAt: createdAt,
+      imageColors: imageColors,
+      deliveryFeeEnugu: deliveryFeeEnugu,
+      deliveryFeeOutside: deliveryFeeOutside,
     );
   }
 
@@ -199,6 +283,10 @@ class ProductModel {
       'deliveryFeeOutside': deliveryFeeOutside,
       'stock': stock,
       'minOrderQuantity': minOrderQuantity,
+      'sizes': sizes,
+      'weights': weights,
+      'lengths': lengths,
+      // single-text copies, kept so older screens keep working
       'size': size,
       'weight': weight,
       'length': length,
@@ -249,9 +337,15 @@ class ProductModel {
   // SIZE / WEIGHT / LENGTH
   //--------------------------------------------------
 
-  bool get hasSize => size.isNotEmpty;
-  bool get hasWeight => weight.isNotEmpty;
-  bool get hasLength => length.isNotEmpty;
+  /// All options as one text, e.g. "S, M, L" (the chosen one after
+  /// [withSelection]).
+  String get size => sizes.join(', ');
+  String get weight => weights.join(', ');
+  String get length => lengths.join(', ');
+
+  bool get hasSize => sizes.isNotEmpty;
+  bool get hasWeight => weights.isNotEmpty;
+  bool get hasLength => lengths.isNotEmpty;
 
   /// At least one of size / weight / length is set.
   bool get hasSpecs => hasSize || hasWeight || hasLength;

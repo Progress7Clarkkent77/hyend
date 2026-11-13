@@ -1087,7 +1087,7 @@ class _BulkSheetState extends State<_BulkSheet> {
 }
 
 //==================================================
-// DETAILS SHEET (min order, size, weight, length)
+// DETAILS SHEET (min order, sizes, weights, lengths)
 //==================================================
 
 class _DetailsSheet extends StatefulWidget {
@@ -1102,9 +1102,14 @@ class _DetailsSheet extends StatefulWidget {
 
 class _DetailsSheetState extends State<_DetailsSheet> {
   late final TextEditingController _minCtrl;
-  late final TextEditingController _sizeCtrl;
-  late final TextEditingController _weightCtrl;
-  late final TextEditingController _lengthCtrl;
+
+  final TextEditingController _sizeInput = TextEditingController();
+  final TextEditingController _weightInput = TextEditingController();
+  final TextEditingController _lengthInput = TextEditingController();
+
+  late final List<String> _sizes;
+  late final List<String> _weights;
+  late final List<String> _lengths;
 
   bool _saving = false;
   String? _error;
@@ -1118,24 +1123,39 @@ class _DetailsSheetState extends State<_DetailsSheet> {
     _minCtrl = TextEditingController(
       text: product.hasMinOrder ? product.minOrderQuantity.toString() : '',
     );
-    _sizeCtrl = TextEditingController(text: product.size);
-    _weightCtrl = TextEditingController(text: product.weight);
-    _lengthCtrl = TextEditingController(text: product.length);
+    _sizes = List<String>.of(product.sizes);
+    _weights = List<String>.of(product.weights);
+    _lengths = List<String>.of(product.lengths);
   }
 
   @override
   void dispose() {
     _minCtrl.dispose();
-    _sizeCtrl.dispose();
-    _weightCtrl.dispose();
-    _lengthCtrl.dispose();
+    _sizeInput.dispose();
+    _weightInput.dispose();
+    _lengthInput.dispose();
     super.dispose();
   }
+
+  /// Moves what is typed in [input] into [target]. False when it was invalid.
+  bool _add(List<String> target, TextEditingController input) {
+    if (input.text.trim().isEmpty) return true;
+
+    final error = ProductModel.addOptions(target, input.text);
+
+    setState(() => _error = error);
+    if (error == null) input.clear();
+
+    return error == null;
+  }
+
+  bool _same(List<String> a, List<String> b) =>
+      a.join('\u0001') == b.join('\u0001');
 
   Future<void> _save() async {
     final minText = _minCtrl.text.trim();
 
-    // empty = no minimum
+    // empty = store default
     final minQty = minText.isEmpty ? 1 : int.tryParse(minText);
 
     if (minQty == null || minQty < 1) {
@@ -1145,16 +1165,19 @@ class _DetailsSheetState extends State<_DetailsSheet> {
       return;
     }
 
-    final size = _sizeCtrl.text.trim();
-    final weight = _weightCtrl.text.trim();
-    final length = _lengthCtrl.text.trim();
+    // text typed but not added yet counts too
+    if (!_add(_sizes, _sizeInput) ||
+        !_add(_weights, _weightInput) ||
+        !_add(_lengths, _lengthInput)) {
+      return;
+    }
 
     final product = widget.product;
     final unchanged =
         minQty == product.minOrderQuantity &&
-        size == product.size &&
-        weight == product.weight &&
-        length == product.length;
+        _same(_sizes, product.sizes) &&
+        _same(_weights, product.weights) &&
+        _same(_lengths, product.lengths);
 
     if (unchanged) {
       Get.back();
@@ -1169,9 +1192,9 @@ class _DetailsSheetState extends State<_DetailsSheet> {
     final ok = await widget.ctrl.updateProductDetails(
       product,
       minOrder: minQty,
-      size: size,
-      weight: weight,
-      length: length,
+      sizes: _sizes,
+      weights: _weights,
+      lengths: _lengths,
     );
 
     if (!mounted) return;
@@ -1184,22 +1207,102 @@ class _DetailsSheetState extends State<_DetailsSheet> {
     }
   }
 
-  Widget _specField(
-    AppPalette p,
-    TextEditingController controller,
-    String label,
-    String hint,
-  ) {
+  Widget _optionEditor(
+    AppPalette p, {
+    required String title,
+    required String hint,
+    required TextEditingController input,
+    required List<String> values,
+  }) {
+    void add() => _add(values, input);
+
     return Padding(
-      padding: const EdgeInsets.only(top: 12),
-      child: TextField(
-        controller: controller,
-        textCapitalization: TextCapitalization.sentences,
-        maxLength: ManageProductsController.maxSpecLength,
-        onChanged: (_) => setState(() => _error = null),
-        style: p.fieldStyle,
-        cursorColor: p.text,
-        decoration: p.input(label, hint: hint, radius: 14, fill: p.tile),
+      padding: const EdgeInsets.only(top: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: input,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => add(),
+                  onChanged: (_) {
+                    if (_error != null) setState(() => _error = null);
+                  },
+                  style: p.fieldStyle,
+                  cursorColor: p.text,
+                  decoration: p.input(
+                    title,
+                    hint: hint,
+                    radius: 14,
+                    fill: p.tile,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              InkWell(
+                onTap: add,
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: p.text,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(Icons.add_rounded, color: p.onAccent),
+                ),
+              ),
+            ],
+          ),
+          if (values.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (var i = 0; i < values.length; i++)
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(12, 6, 6, 6),
+                      decoration: BoxDecoration(
+                        color: p.tile,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            values[i],
+                            style: TextStyle(
+                              color: p.text,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          InkWell(
+                            onTap: () => setState(() => values.removeAt(i)),
+                            borderRadius: BorderRadius.circular(10),
+                            child: Padding(
+                              padding: const EdgeInsets.all(2),
+                              child: Icon(
+                                Icons.close_rounded,
+                                size: 16,
+                                color: p.muted,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -1252,7 +1355,7 @@ class _DetailsSheetState extends State<_DetailsSheet> {
                     cursorColor: p.text,
                     decoration: p.input(
                       'Minimum order quantity',
-                      hint: 'e.g. 10 — leave empty for no minimum',
+                      hint: 'e.g. 10 — empty uses the store default (5)',
                       radius: 14,
                       fill: p.tile,
                     ),
@@ -1262,11 +1365,32 @@ class _DetailsSheetState extends State<_DetailsSheet> {
                     'Customers can\'t add fewer than this to their cart.',
                     style: TextStyle(fontSize: 12.5, color: p.muted),
                   ),
-                  _specField(p, _sizeCtrl, 'Size', 'e.g. XL, 42, Large'),
-                  _specField(p, _weightCtrl, 'Weight', 'e.g. 2 kg'),
-                  _specField(p, _lengthCtrl, 'Length', 'e.g. 120 cm'),
+                  _optionEditor(
+                    p,
+                    title: 'Sizes',
+                    hint: 'e.g. S, M, L, XL',
+                    input: _sizeInput,
+                    values: _sizes,
+                  ),
+                  _optionEditor(
+                    p,
+                    title: 'Weights',
+                    hint: 'e.g. 1 kg, 2 kg, 5 kg',
+                    input: _weightInput,
+                    values: _weights,
+                  ),
+                  _optionEditor(
+                    p,
+                    title: 'Lengths',
+                    hint: 'e.g. 60 cm, 90 cm, 120 cm',
+                    input: _lengthInput,
+                    values: _lengths,
+                  ),
+                  const SizedBox(height: 10),
                   Text(
-                    'Size, weight and length are optional — clear a field to remove it.',
+                    'Sizes, weights and lengths are optional. Separate several '
+                    'with commas and tap +; customers pick one on the product '
+                    'page.',
                     style: TextStyle(fontSize: 12.5, color: p.muted),
                   ),
                   if (_error != null) ...[

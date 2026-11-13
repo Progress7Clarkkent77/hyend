@@ -897,38 +897,32 @@ class UploadProductsPage extends StatelessWidget {
                 cursorColor: p.text,
                 decoration: p.input(
                   'Minimum order quantity (optional)',
-                  hint: 'e.g. 10 — leave empty for no minimum',
+                  hint: 'e.g. 10 — empty uses the store default (5)',
                 ),
               ),
               const SizedBox(height: 15),
-              TextField(
-                controller: uploadCtrl.sizeCtrl,
-                textCapitalization: TextCapitalization.sentences,
-                maxLength: UploadProductController.maxSpecLength,
-                style: p.fieldStyle,
-                cursorColor: p.text,
-                decoration: p.input(
-                  'Size (optional)',
-                  hint: 'e.g. XL, 42, Large',
-                ),
+              _optionEditor(
+                p,
+                title: 'Sizes (optional)',
+                hint: 'e.g. S, M, L, XL',
+                input: uploadCtrl.sizeCtrl,
+                values: uploadCtrl.sizes,
               ),
               const SizedBox(height: 15),
-              TextField(
-                controller: uploadCtrl.weightCtrl,
-                textCapitalization: TextCapitalization.sentences,
-                maxLength: UploadProductController.maxSpecLength,
-                style: p.fieldStyle,
-                cursorColor: p.text,
-                decoration: p.input('Weight (optional)', hint: 'e.g. 2 kg'),
+              _optionEditor(
+                p,
+                title: 'Weights (optional)',
+                hint: 'e.g. 1 kg, 2 kg, 5 kg',
+                input: uploadCtrl.weightCtrl,
+                values: uploadCtrl.weights,
               ),
               const SizedBox(height: 15),
-              TextField(
-                controller: uploadCtrl.lengthCtrl,
-                textCapitalization: TextCapitalization.sentences,
-                maxLength: UploadProductController.maxSpecLength,
-                style: p.fieldStyle,
-                cursorColor: p.text,
-                decoration: p.input('Length (optional)', hint: 'e.g. 120 cm'),
+              _optionEditor(
+                p,
+                title: 'Lengths (optional)',
+                hint: 'e.g. 60 cm, 90 cm, 120 cm',
+                input: uploadCtrl.lengthCtrl,
+                values: uploadCtrl.lengths,
               ),
               const SizedBox(height: 15),
               TextField(
@@ -1187,6 +1181,100 @@ class UploadProductsPage extends StatelessWidget {
   //==================================================
   // DELIVERY
   //==================================================
+
+  /// Type one or several options separated by commas, tap + to add them, and
+  /// tap the x on a chip to remove it. Customers pick one on the product page.
+  Widget _optionEditor(
+    AppPalette p, {
+    required String title,
+    required String hint,
+    required TextEditingController input,
+    required RxList<String> values,
+  }) {
+    void add() => uploadCtrl.addOption(values, input);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: TextField(
+                controller: input,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => add(),
+                style: p.fieldStyle,
+                cursorColor: p.text,
+                decoration: p.input(title, hint: hint),
+              ),
+            ),
+            const SizedBox(width: 10),
+            InkWell(
+              onTap: add,
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: p.text,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(Icons.add_rounded, color: p.onAccent),
+              ),
+            ),
+          ],
+        ),
+        Obx(() {
+          if (values.isEmpty) return const SizedBox.shrink();
+
+          return Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (var i = 0; i < values.length; i++)
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(12, 6, 6, 6),
+                    decoration: BoxDecoration(
+                      color: p.tile,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          values[i],
+                          style: TextStyle(
+                            color: p.text,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        InkWell(
+                          onTap: () => values.removeAt(i),
+                          borderRadius: BorderRadius.circular(10),
+                          child: Padding(
+                            padding: const EdgeInsets.all(2),
+                            child: Icon(
+                              Icons.close_rounded,
+                              size: 16,
+                              color: p.muted,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
 
   Widget _deliverySection(AppPalette p) {
     return Container(

@@ -199,8 +199,8 @@ class _CheckoutPageState extends State<CheckoutPage>
           '= ${formatNaira(item.total)}',
         );
 
-      if (item.product.hasSpecs) {
-        b.writeln('   ${item.product.specsLabel}');
+      if (item.hasSpecs) {
+        b.writeln('   ${item.specsLabel}');
       }
     }
 
@@ -1139,10 +1139,10 @@ class _CheckoutPageState extends State<CheckoutPage>
                         '${item.hasColor ? ' · ${item.colorName}' : ''}',
                         style: TextStyle(color: p.muted, fontSize: 12),
                       ),
-                      if (item.product.hasSpecs) ...[
+                      if (item.hasSpecs) ...[
                         const SizedBox(height: 2),
                         Text(
-                          item.product.specsLabel,
+                          item.specsLabel,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(color: p.muted, fontSize: 11.5),

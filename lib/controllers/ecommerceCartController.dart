@@ -19,8 +19,8 @@ class EcommerceCartController extends GetxController {
   final RxList<CartItemModel> cartItems = <CartItemModel>[].obs;
   final RxBool isLoading = false.obs;
 
-  /// Where the order is being delivered (within or outside Enugu). Shared by
-  /// the product page, cart and checkout.
+  /// Where the order is being delivered. Shared by the product page, cart and
+  /// checkout so the delivery fee is always the same everywhere.
   final Rx<DeliveryZone> deliveryZone = DeliveryZone.enugu.obs;
 
   StreamSubscription<User?>? _authSub;
@@ -50,15 +50,18 @@ class EcommerceCartController extends GetxController {
   }
 
   //--------------------------------------------------
-  // MINIMUM ORDER (set per product by the admin)
+  // WHOLESALE MINIMUM
   //--------------------------------------------------
 
-  /// Smallest quantity allowed for [product]: the minimum order the admin set
-  /// when uploading it (1 when none was set). A product with fewer units left
-  /// in stock than that can only be bought as what is left.
+  /// HyEnd sells in bulk: every add-to-cart is at least this many units.
+  static const int minOrderQty = 5;
+
+  /// Smallest quantity allowed for [product]: the minimum set on the product
+  /// in Manage Products, otherwise the store default [minOrderQty]. A product
+  /// with fewer units left in stock can only be bought as what is left.
   int minOrderFor(ProductModel product) {
-    final min = math.max(1, product.minOrderQuantity);
-    return product.stock > 0 ? math.min(min, product.stock) : min;
+    final wanted = product.hasMinOrder ? product.minOrderQuantity : minOrderQty;
+    return product.stock > 0 ? math.min(wanted, product.stock) : wanted;
   }
 
   //--------------------------------------------------
@@ -86,12 +89,25 @@ class EcommerceCartController extends GetxController {
 
   double get subtotal => cartItems.fold(0.0, (sum, item) => sum + item.total);
 
-  /// The service fee has been removed, so nothing is added on top of the
-  /// subtotal. These two are kept (always 0 / = subtotal) only so any other
-  /// file that still reads them keeps compiling.
-  double get deliveryFee => 0.0;
+  /// Delivery fee if the order went to [zone]. A product is charged once,
+  /// even when it is in the cart in several colours.
+  double deliveryFeeForZone(DeliveryZone zone) {
+    final counted = <String>{};
+    var sum = 0.0;
 
-  double get grandTotal => subtotal;
+    for (final item in cartItems) {
+      if (counted.add(item.product.id)) {
+        sum += item.product.deliveryFeeFor(zone);
+      }
+    }
+
+    return sum;
+  }
+
+  /// Delivery fee for the currently selected zone.
+  double get deliveryFee => deliveryFeeForZone(deliveryZone.value);
+
+  double get grandTotal => subtotal + deliveryFee;
 
   //--------------------------------------------------
   // DELIVERY ZONE
@@ -166,6 +182,9 @@ class EcommerceCartController extends GetxController {
               colorName: (data['colorName'] ?? '').toString(),
               colorHex: (data['colorHex'] ?? '').toString(),
               imageIndex: (data['imageIndex'] as num? ?? 0).toInt(),
+              size: (data['size'] ?? '').toString(),
+              weight: (data['weight'] ?? '').toString(),
+              length: (data['length'] ?? '').toString(),
             ),
           );
         }
@@ -184,8 +203,8 @@ class EcommerceCartController extends GetxController {
   //--------------------------------------------------
 
   /// Adds [quantity] of [product] (in the chosen [color]).
-  /// When [quantity] is omitted (the product card's add button) the product's
-  /// own minimum order is added. A smaller [quantity] is raised to that minimum.
+  /// When [quantity] is omitted (the product card's add button) the minimum
+  /// order of 5 is added. A smaller [quantity] is raised to the minimum.
   /// Returns false if nothing was added.
   ///
   /// [onAdded] fires the moment the item lands in the local cart (before the
@@ -196,6 +215,9 @@ class EcommerceCartController extends GetxController {
     int? quantity,
     ProductColor? color,
     int imageIndex = 0,
+    String size = '',
+    String weight = '',
+    String length = '',
     VoidCallback? onAdded,
   }) async {
     final uid = _uid;
@@ -206,6 +228,17 @@ class EcommerceCartController extends GetxController {
         'Please login first',
         backgroundColor: Colors.black,
         colorText: Colors.white,
+      );
+      return false;
+    }
+
+    // A product with sizes / weights / lengths needs one chosen for each.
+    if ((product.hasSize && size.isEmpty) ||
+        (product.hasWeight && weight.isEmpty) ||
+        (product.hasLength && length.isEmpty)) {
+      Get.snackbar(
+        'Choose an option',
+        'Open the product and select the size, weight or length first.',
       );
       return false;
     }
@@ -229,7 +262,13 @@ class EcommerceCartController extends GetxController {
     }
 
     final colorKey = color?.key ?? '';
-    final lineId = CartItemModel.lineIdFor(product.id, colorKey);
+    final lineId = CartItemModel.lineIdFor(
+      product.id,
+      colorKey,
+      size: size,
+      weight: weight,
+      length: length,
+    );
 
     final index = cartItems.indexWhere((e) => e.lineId == lineId);
 
@@ -244,6 +283,9 @@ class EcommerceCartController extends GetxController {
           colorName: color?.name ?? '',
           colorHex: color?.hex ?? '',
           imageIndex: imageIndex,
+          size: size,
+          weight: weight,
+          length: length,
         ),
       );
     }
@@ -258,6 +300,9 @@ class EcommerceCartController extends GetxController {
       'colorName': item.colorName,
       'colorHex': item.colorHex,
       'imageIndex': item.imageIndex,
+      'size': item.size,
+      'weight': item.weight,
+      'length': item.length,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
@@ -333,7 +378,7 @@ class EcommerceCartController extends GetxController {
     final line = cartItems.firstWhereOrNull((e) => e.lineId == item.lineId);
     if (line == null) return;
 
-    // A line can never go below the product's minimum order.
+    // Wholesale: a line can never go below the minimum order.
     if (line.quantity <= minOrderFor(line.product)) return;
 
     line.quantity--;

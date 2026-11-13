@@ -776,10 +776,10 @@ class _EcommerceHomePageState extends State<EcommerceHomePage> {
     ),
     _PolicyItem(
       group: 'Orders & Delivery',
-      title: 'Shipping & Delivery',
-      subtitle: 'Delivery locations and delivery times',
+      title: 'Shipping, Clearing & Service Fee',
+      subtitle: 'What the Service Fee covers and delivery times',
       icon: Icons.local_shipping_outlined,
-      // LINK 5 of 8: Shipping and Delivery Policy
+      // LINK 5 of 8: Shipping, Clearing and Service Fee Policy
       url: 'https://docs.google.com/document/d/e/2PACX-1vSKDrPEsEiiUzLKZbHF16ufY4d-QInZ6IuCv2i_uwQHPFZvMGBf1cFGJd252QT_WH-7xUU9ztg_IkO7/pub',
     ),
     _PolicyItem(
@@ -1138,7 +1138,7 @@ class _EcommerceHomePageState extends State<EcommerceHomePage> {
         [
           "3",
           "We confirm",
-          "We check stock and confirm the total cost with you.",
+          "We check stock and tell you the full cost, including the Service Fee.",
         ],
         [
           "4",
@@ -1197,6 +1197,32 @@ class _EcommerceHomePageState extends State<EcommerceHomePage> {
             ],
           ),
         ),
+
+      Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(top: 4, bottom: 16),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: p.tile,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: p.border),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.public_rounded, size: 17, color: p.text),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                "What is the Service Fee? It covers shipping, customs clearing "
+                "and other handling costs, so your goods travel safely from "
+                "the supplier to you.",
+                style: TextStyle(fontSize: 10, height: 1.45, color: p.muted),
+              ),
+            ),
+          ],
+        ),
+      ),
 
       Text(
         "Powered by AFIA SPLENDID LTD",
@@ -1698,17 +1724,32 @@ class _EcommerceHomePageState extends State<EcommerceHomePage> {
                     ),
                     const SizedBox(width: 6),
                     Tooltip(
-                      message: 'Add ${cartCtrl.minOrderFor(product)} to cart',
+                      message: product.hasSpecs
+                          ? 'Choose options'
+                          : 'Add ${cartCtrl.minOrderFor(product)} to cart',
                       child: Material(
                         color: p.accent,
                         borderRadius: BorderRadius.circular(11),
                         child: Builder(
                           builder: (btnCtx) => InkWell(
                             borderRadius: BorderRadius.circular(11),
-                            onTap: () => cartCtrl.addToCart(
-                              product,
-                              onAdded: () => _flyToCart(btnCtx, product),
-                            ),
+                            onTap: () {
+                              // sizes / weights / lengths must be chosen on
+                              // the product page, so open it instead
+                              if (product.hasSpecs) {
+                                storeCtrl.selectProduct(product);
+                                nav.goTo(
+                                  EcommerceLiveRoutes.productDetails,
+                                  arguments: product,
+                                );
+                                return;
+                              }
+
+                              cartCtrl.addToCart(
+                                product,
+                                onAdded: () => _flyToCart(btnCtx, product),
+                              );
+                            },
                             child: SizedBox(
                               width: 34,
                               height: 34,

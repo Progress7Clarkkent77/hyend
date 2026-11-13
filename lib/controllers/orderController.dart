@@ -215,10 +215,10 @@ class OrderController extends GetxController {
             image: e.image,
             colorName: e.colorName,
             colorHex: e.colorHex,
-            // size / weight / length as the customer saw them
-            size: e.product.size,
-            weight: e.product.weight,
-            length: e.product.length,
+            // the size / weight / length the customer selected
+            size: e.size,
+            weight: e.weight,
+            length: e.length,
           ),
         )
         .toList();

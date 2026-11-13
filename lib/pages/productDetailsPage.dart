@@ -48,6 +48,11 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
   final RxnString selectedColorKey = RxnString();
   bool _lockColor = false;
 
+  /// Size / weight / length the customer picked (null = not chosen yet).
+  final RxnString selectedSize = RxnString();
+  final RxnString selectedWeight = RxnString();
+  final RxnString selectedLength = RxnString();
+
   /// Target of the fly-to-cart animation (the cart icon in the app bar).
   final GlobalKey<CartFlyTargetState> _cartFlyKey =
       GlobalKey<CartFlyTargetState>();
@@ -155,6 +160,9 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     _resetQuantity(product);
     imageIndex.value = 0;
     selectedColorKey.value = null;
+    selectedSize.value = null;
+    selectedWeight.value = null;
+    selectedLength.value = null;
 
     if (_pager.hasClients) _pager.jumpToPage(0);
 
@@ -251,6 +259,12 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
       return false;
     }
 
+    final missing = _missingOption(product);
+    if (missing != null) {
+      _snack('Select a $missing', 'Please choose a $missing first.', p);
+      return false;
+    }
+
     try {
       busy.value = true;
 
@@ -261,6 +275,10 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         quantity: quantity.value,
         color: color,
         imageIndex: color == null ? 0 : _cartImageIndex(product, color),
+        // only what the customer selected goes into the cart
+        size: _chosenOf(product.sizes, selectedSize) ?? '',
+        weight: _chosenOf(product.weights, selectedWeight) ?? '',
+        length: _chosenOf(product.lengths, selectedLength) ?? '',
         onAdded: onAdded,
       );
     } catch (e) {
@@ -659,7 +677,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         ],
         if (product.hasSpecs) ...[
           const SizedBox(height: 24),
-          _specTiles(p, product),
+          _optionSection(p, product),
         ],
         const SizedBox(height: 24),
         _deliverySection(p, product),
@@ -860,101 +878,158 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
   //==================================================
 
   //==================================================
-  // SIZE / WEIGHT / LENGTH
+  // SIZE / WEIGHT / LENGTH (customer picks one of each)
   //==================================================
 
-  Widget _specTiles(_P p, ProductModel product) {
-    final items = <_SpecItem>[
-      if (product.hasSize)
-        _SpecItem(Icons.aspect_ratio_rounded, 'Size', product.size),
-      if (product.hasWeight)
-        _SpecItem(Icons.scale_outlined, 'Weight', product.weight),
-      if (product.hasLength)
-        _SpecItem(Icons.straighten_rounded, 'Length', product.length),
-    ];
+  /// The option the customer picked; a group with a single option is simply
+  /// that option.
+  String? _chosenOf(List<String> options, RxnString selected) {
+    final current = selected.value;
+    if (current != null && options.contains(current)) return current;
+    return options.length == 1 ? options.first : null;
+  }
+
+  /// Name of the first group that still needs a choice, or null when done.
+  String? _missingOption(ProductModel product) {
+    if (product.sizes.isNotEmpty &&
+        _chosenOf(product.sizes, selectedSize) == null) {
+      return 'size';
+    }
+    if (product.weights.isNotEmpty &&
+        _chosenOf(product.weights, selectedWeight) == null) {
+      return 'weight';
+    }
+    if (product.lengths.isNotEmpty &&
+        _chosenOf(product.lengths, selectedLength) == null) {
+      return 'length';
+    }
+    return null;
+  }
+
+  Widget _optionSection(_P p, ProductModel product) {
+    return Obx(() {
+      final groups = <_OptionGroup>[
+        if (product.sizes.isNotEmpty)
+          _OptionGroup(
+            'Size',
+            Icons.aspect_ratio_rounded,
+            product.sizes,
+            selectedSize,
+          ),
+        if (product.weights.isNotEmpty)
+          _OptionGroup(
+            'Weight',
+            Icons.scale_outlined,
+            product.weights,
+            selectedWeight,
+          ),
+        if (product.lengths.isNotEmpty)
+          _OptionGroup(
+            'Length',
+            Icons.straighten_rounded,
+            product.lengths,
+            selectedLength,
+          ),
+      ];
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var i = 0; i < groups.length; i++) ...[
+            if (i > 0) const SizedBox(height: 22),
+            _optionGroup(p, groups[i]),
+          ],
+        ],
+      );
+    });
+  }
+
+  Widget _optionGroup(_P p, _OptionGroup group) {
+    final chosen = _chosenOf(group.options, group.selected);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Product details',
-          style: TextStyle(
-            color: p.text,
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-          ),
+        Row(
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: p.tile,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(group.icon, size: 16, color: p.text),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              group.label,
+              style: TextStyle(
+                color: p.text,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const Spacer(),
+            Flexible(
+              child: Text(
+                chosen ?? 'Select a ${group.label.toLowerCase()}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: chosen == null ? _amber : p.muted,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            const gap = 10.0;
-            final n = items.length;
-
-            // three across when there is room, otherwise two per row
-            final perRow = constraints.maxWidth / n >= 104
-                ? n
-                : (n > 1 ? 2 : 1);
-            final width = (constraints.maxWidth - gap * (perRow - 1)) / perRow;
-
-            return Wrap(
-              spacing: gap,
-              runSpacing: gap,
-              children: [
-                for (final item in items)
-                  SizedBox(width: width, child: _specTile(p, item)),
-              ],
-            );
-          },
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final option in group.options)
+              _optionPill(
+                p,
+                option,
+                selected: option == chosen,
+                onTap: () => group.selected.value = option,
+              ),
+          ],
         ),
       ],
     );
   }
 
-  Widget _specTile(_P p, _SpecItem item) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: p.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: p.border),
-        boxShadow: p.shadow,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: p.tile,
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: Icon(item.icon, size: 18, color: p.text),
+  Widget _optionPill(
+    _P p,
+    String label, {
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        constraints: const BoxConstraints(minWidth: 52),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+        decoration: BoxDecoration(
+          color: selected ? p.accent : p.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: selected ? p.accent : p.border),
+          boxShadow: selected ? p.shadow : const [],
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: selected ? p.onAccent : p.text,
+            fontSize: 13.5,
+            fontWeight: FontWeight.w700,
           ),
-          const SizedBox(height: 12),
-          Text(
-            item.label.toUpperCase(),
-            style: TextStyle(
-              color: p.muted,
-              fontSize: 10.5,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.8,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            item.value,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: p.text,
-              fontSize: 15,
-              height: 1.2,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.2,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1121,9 +1196,18 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
           'Colours',
           product.colorOptions.map((o) => o.color.name).join(', '),
         ),
-      if (product.hasSize) MapEntry('Size', product.size),
-      if (product.hasWeight) MapEntry('Weight', product.weight),
-      if (product.hasLength) MapEntry('Length', product.length),
+      if (product.hasSize)
+        MapEntry(product.sizes.length > 1 ? 'Sizes' : 'Size', product.size),
+      if (product.hasWeight)
+        MapEntry(
+          product.weights.length > 1 ? 'Weights' : 'Weight',
+          product.weight,
+        ),
+      if (product.hasLength)
+        MapEntry(
+          product.lengths.length > 1 ? 'Lengths' : 'Length',
+          product.length,
+        ),
       MapEntry('Minimum order', '${cartCtrl.minOrderFor(product)} units'),
     ];
 
@@ -1595,11 +1679,12 @@ class _P {
         ];
 }
 
-/// One size / weight / length tile on the product page.
-class _SpecItem {
-  const _SpecItem(this.icon, this.label, this.value);
+/// One group of choices (size, weight or length) on the product page.
+class _OptionGroup {
+  const _OptionGroup(this.label, this.icon, this.options, this.selected);
 
-  final IconData icon;
   final String label;
-  final String value;
+  final IconData icon;
+  final List<String> options;
+  final RxnString selected;
 }
