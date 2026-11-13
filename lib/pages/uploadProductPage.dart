@@ -890,6 +890,48 @@ class UploadProductsPage extends StatelessWidget {
               ),
               const SizedBox(height: 15),
               TextField(
+                controller: uploadCtrl.minOrderCtrl,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                style: p.fieldStyle,
+                cursorColor: p.text,
+                decoration: p.input(
+                  'Minimum order quantity (optional)',
+                  hint: 'e.g. 10 — leave empty for no minimum',
+                ),
+              ),
+              const SizedBox(height: 15),
+              TextField(
+                controller: uploadCtrl.sizeCtrl,
+                textCapitalization: TextCapitalization.sentences,
+                maxLength: UploadProductController.maxSpecLength,
+                style: p.fieldStyle,
+                cursorColor: p.text,
+                decoration: p.input(
+                  'Size (optional)',
+                  hint: 'e.g. XL, 42, Large',
+                ),
+              ),
+              const SizedBox(height: 15),
+              TextField(
+                controller: uploadCtrl.weightCtrl,
+                textCapitalization: TextCapitalization.sentences,
+                maxLength: UploadProductController.maxSpecLength,
+                style: p.fieldStyle,
+                cursorColor: p.text,
+                decoration: p.input('Weight (optional)', hint: 'e.g. 2 kg'),
+              ),
+              const SizedBox(height: 15),
+              TextField(
+                controller: uploadCtrl.lengthCtrl,
+                textCapitalization: TextCapitalization.sentences,
+                maxLength: UploadProductController.maxSpecLength,
+                style: p.fieldStyle,
+                cursorColor: p.text,
+                decoration: p.input('Length (optional)', hint: 'e.g. 120 cm'),
+              ),
+              const SizedBox(height: 15),
+              TextField(
                 controller: uploadCtrl.descriptionCtrl,
                 maxLines: 2,
                 style: p.fieldStyle,
@@ -1151,65 +1193,94 @@ class UploadProductsPage extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: p.cardDecoration(radius: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _sectionLabel(
-            p,
-            'Delivery fees',
-            subtitle:
-                'Customers choose where the order is going. '
-                'Leave a field empty for free delivery.',
-          ),
-          Row(
-            children: [
-              Icon(Icons.location_on_outlined, size: 18, color: p.text),
-              const SizedBox(width: 6),
-              Text(
-                'Within Enugu State',
-                style: TextStyle(fontWeight: FontWeight.w700, color: p.text),
+      child: Obx(() {
+        final on = uploadCtrl.hasDeliveryFee.value;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: _sectionLabel(
+                    p,
+                    'Delivery fees (optional)',
+                    subtitle: on
+                        ? 'Leave a field empty for free delivery in that zone.'
+                        : 'Off — this product will have free delivery.',
+                  ),
+                ),
+                Switch(
+                  value: on,
+                  activeColor: p.text,
+                  onChanged: (v) {
+                    uploadCtrl.hasDeliveryFee.value = v;
+                    if (!v) {
+                      uploadCtrl.deliveryFeeEnuguCtrl.clear();
+                      uploadCtrl.deliveryFeeOutsideCtrl.clear();
+                    }
+                  },
+                ),
+              ],
+            ),
+            if (on) ...[
+              Row(
+                children: [
+                  Icon(Icons.location_on_outlined, size: 18, color: p.text),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Within Enugu State',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: p.text,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: uploadCtrl.deliveryFeeEnuguCtrl,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                style: p.fieldStyle,
+                cursorColor: p.text,
+                decoration: p.input(
+                  'Delivery fee (Enugu)',
+                  prefix: '₦ ',
+                  fill: p.tile,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Icon(Icons.public_rounded, size: 18, color: p.text),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Outside Enugu State',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: p.text,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: uploadCtrl.deliveryFeeOutsideCtrl,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                style: p.fieldStyle,
+                cursorColor: p.text,
+                decoration: p.input(
+                  'Delivery fee (Outside Enugu)',
+                  prefix: '₦ ',
+                  fill: p.tile,
+                ),
               ),
             ],
-          ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: uploadCtrl.deliveryFeeEnuguCtrl,
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            style: p.fieldStyle,
-            cursorColor: p.text,
-            decoration: p.input(
-              'Delivery fee (Enugu)',
-              prefix: '₦ ',
-              fill: p.tile,
-            ),
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Icon(Icons.public_rounded, size: 18, color: p.text),
-              const SizedBox(width: 6),
-              Text(
-                'Outside Enugu State',
-                style: TextStyle(fontWeight: FontWeight.w700, color: p.text),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: uploadCtrl.deliveryFeeOutsideCtrl,
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            style: p.fieldStyle,
-            cursorColor: p.text,
-            decoration: p.input(
-              'Delivery fee (Outside Enugu)',
-              prefix: '₦ ',
-              fill: p.tile,
-            ),
-          ),
-        ],
-      ),
+          ],
+        );
+      }),
     );
   }
 }

@@ -77,11 +77,24 @@ class UploadProductController extends GetxController {
   final TextEditingController priceCtrl = TextEditingController();
   final TextEditingController stockCtrl = TextEditingController();
 
+  /// Minimum quantity per cart. Empty = 1 (no minimum).
+  final TextEditingController minOrderCtrl = TextEditingController();
+
+  /// Optional specs (free text), e.g. "XL", "2 kg", "120 cm".
+  static const int maxSpecLength = 40;
+  final TextEditingController sizeCtrl = TextEditingController();
+  final TextEditingController weightCtrl = TextEditingController();
+  final TextEditingController lengthCtrl = TextEditingController();
+
   /// Delivery inside Enugu State.
   final TextEditingController deliveryFeeEnuguCtrl = TextEditingController();
 
   /// Delivery to any other state.
   final TextEditingController deliveryFeeOutsideCtrl = TextEditingController();
+
+  /// Off = no delivery fee (free delivery). The fee fields are hidden and
+  /// anything typed in them is ignored.
+  final RxBool hasDeliveryFee = false.obs;
 
   //==================================================
   // IMAGES
@@ -123,6 +136,10 @@ class UploadProductController extends GetxController {
     descriptionCtrl.dispose();
     priceCtrl.dispose();
     stockCtrl.dispose();
+    minOrderCtrl.dispose();
+    sizeCtrl.dispose();
+    weightCtrl.dispose();
+    lengthCtrl.dispose();
     deliveryFeeEnuguCtrl.dispose();
     deliveryFeeOutsideCtrl.dispose();
     super.onClose();
@@ -246,20 +263,62 @@ class UploadProductController extends GetxController {
       }
     }
 
-    if (!_validFee(deliveryFeeEnuguCtrl.text.trim())) {
-      Get.snackbar('Delivery Fee', 'Invalid delivery fee within Enugu State');
-      return false;
-    }
+    // delivery fees are optional — only checked when the switch is on
+    if (hasDeliveryFee.value) {
+      if (!_validFee(deliveryFeeEnuguCtrl.text.trim())) {
+        Get.snackbar('Delivery Fee', 'Invalid delivery fee within Enugu State');
+        return false;
+      }
 
-    if (!_validFee(deliveryFeeOutsideCtrl.text.trim())) {
-      Get.snackbar('Delivery Fee', 'Invalid delivery fee outside Enugu State');
-      return false;
+      if (!_validFee(deliveryFeeOutsideCtrl.text.trim())) {
+        Get.snackbar(
+          'Delivery Fee',
+          'Invalid delivery fee outside Enugu State',
+        );
+        return false;
+      }
     }
 
     final stockText = stockCtrl.text.trim();
     if (stockText.isNotEmpty && (int.tryParse(stockText) ?? -1) < 0) {
       Get.snackbar('Stock', 'Invalid stock quantity');
       return false;
+    }
+
+    // size / weight / length (all optional)
+    final specs = {
+      'Size': sizeCtrl.text.trim(),
+      'Weight': weightCtrl.text.trim(),
+      'Length': lengthCtrl.text.trim(),
+    };
+    for (final entry in specs.entries) {
+      if (entry.value.length > maxSpecLength) {
+        Get.snackbar(
+          entry.key,
+          '${entry.key} must be $maxSpecLength characters or fewer',
+        );
+        return false;
+      }
+    }
+
+    // minimum order quantity (optional, empty = 1)
+    final minText = minOrderCtrl.text.trim();
+    if (minText.isNotEmpty) {
+      final minQty = int.tryParse(minText);
+
+      if (minQty == null || minQty < 1) {
+        Get.snackbar('Minimum order', 'Minimum order must be 1 or more');
+        return false;
+      }
+
+      final stockQty = int.tryParse(stockText) ?? 0;
+      if (stockQty > 0 && minQty > stockQty) {
+        Get.snackbar(
+          'Minimum order',
+          'Minimum order ($minQty) cannot be more than the stock ($stockQty)',
+        );
+        return false;
+      }
     }
 
     return true;
@@ -279,9 +338,13 @@ class UploadProductController extends GetxController {
       final platformFee = originalPrice * StoreConfig.platformFeeRate;
       final sellingPrice = originalPrice + platformFee;
 
-      final feeEnugu = double.tryParse(deliveryFeeEnuguCtrl.text.trim()) ?? 0;
-      final feeOutside =
-          double.tryParse(deliveryFeeOutsideCtrl.text.trim()) ?? 0;
+      // switch off = free delivery (0), whatever is left in the fields
+      final feeEnugu = hasDeliveryFee.value
+          ? (double.tryParse(deliveryFeeEnuguCtrl.text.trim()) ?? 0)
+          : 0.0;
+      final feeOutside = hasDeliveryFee.value
+          ? (double.tryParse(deliveryFeeOutsideCtrl.text.trim()) ?? 0)
+          : 0.0;
 
       await _firestore.collection(StoreConfig.productsCollection).add({
         // Product info
@@ -302,6 +365,12 @@ class UploadProductController extends GetxController {
 
         // Stock
         'stock': int.tryParse(stockCtrl.text.trim()) ?? 0,
+        'minOrderQuantity': int.tryParse(minOrderCtrl.text.trim()) ?? 1,
+
+        // Optional specs ('' = not set)
+        'size': sizeCtrl.text.trim(),
+        'weight': weightCtrl.text.trim(),
+        'length': lengthCtrl.text.trim(),
 
         // Images + the colour of each image (same order)
         'images': imageBase64List.toList(),
@@ -327,6 +396,10 @@ class UploadProductController extends GetxController {
     descriptionCtrl.clear();
     priceCtrl.clear();
     stockCtrl.clear();
+    minOrderCtrl.clear();
+    sizeCtrl.clear();
+    weightCtrl.clear();
+    lengthCtrl.clear();
     deliveryFeeEnuguCtrl.clear();
     deliveryFeeOutsideCtrl.clear();
 
@@ -334,6 +407,7 @@ class UploadProductController extends GetxController {
     imageBase64List.clear();
     selectedColors.clear();
 
+    hasDeliveryFee.value = false;
     selectedCategory.value = '';
   }
 }

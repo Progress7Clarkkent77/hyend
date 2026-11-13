@@ -296,6 +296,14 @@ class ManageProductsPage extends StatelessWidget {
     );
   }
 
+  Future<void> _openDetailsSheet(ProductModel product) async {
+    await Get.bottomSheet(
+      _DetailsSheet(product: product, ctrl: ctrl),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+    );
+  }
+
   Future<void> _openPricingSheet(ProductModel product) async {
     await Get.bottomSheet(
       _PricingSheet(product: product, bf: bf),
@@ -437,6 +445,17 @@ class ManageProductsPage extends StatelessWidget {
                             product.isActive ? 'Active' : 'Inactive',
                             product.isActive ? p.success : p.danger,
                           ),
+                          if (product.hasMinOrder)
+                            _chip(
+                              'Min order: ${product.minOrderQuantity}',
+                              p.text,
+                            ),
+                          if (product.hasSize)
+                            _chip('Size: ${product.size}', p.text),
+                          if (product.hasWeight)
+                            _chip('Weight: ${product.weight}', p.text),
+                          if (product.hasLength)
+                            _chip('Length: ${product.length}', p.text),
                           if (product.hasBlackFridayDiscount && !onSale)
                             _chip(
                               'Black Friday -$pct% (when live)',
@@ -469,6 +488,12 @@ class ManageProductsPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 6),
+                IconButton(
+                  tooltip: 'Edit details (min order, size, weight, length)',
+                  color: p.text,
+                  icon: const Icon(Icons.tune),
+                  onPressed: () => _openDetailsSheet(product),
+                ),
                 IconButton(
                   tooltip: 'Enable / Disable',
                   color: p.text,
@@ -1049,6 +1074,232 @@ class _BulkSheetState extends State<_BulkSheet> {
                           fontWeight: FontWeight.w700,
                         ),
                       ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    });
+  }
+}
+
+//==================================================
+// DETAILS SHEET (min order, size, weight, length)
+//==================================================
+
+class _DetailsSheet extends StatefulWidget {
+  const _DetailsSheet({required this.product, required this.ctrl});
+
+  final ProductModel product;
+  final ManageProductsController ctrl;
+
+  @override
+  State<_DetailsSheet> createState() => _DetailsSheetState();
+}
+
+class _DetailsSheetState extends State<_DetailsSheet> {
+  late final TextEditingController _minCtrl;
+  late final TextEditingController _sizeCtrl;
+  late final TextEditingController _weightCtrl;
+  late final TextEditingController _lengthCtrl;
+
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final product = widget.product;
+
+    // Older products have none of these yet, so the fields start empty.
+    _minCtrl = TextEditingController(
+      text: product.hasMinOrder ? product.minOrderQuantity.toString() : '',
+    );
+    _sizeCtrl = TextEditingController(text: product.size);
+    _weightCtrl = TextEditingController(text: product.weight);
+    _lengthCtrl = TextEditingController(text: product.length);
+  }
+
+  @override
+  void dispose() {
+    _minCtrl.dispose();
+    _sizeCtrl.dispose();
+    _weightCtrl.dispose();
+    _lengthCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final minText = _minCtrl.text.trim();
+
+    // empty = no minimum
+    final minQty = minText.isEmpty ? 1 : int.tryParse(minText);
+
+    if (minQty == null || minQty < 1) {
+      setState(
+        () => _error = 'Minimum order must be a whole number of 1 or more',
+      );
+      return;
+    }
+
+    final size = _sizeCtrl.text.trim();
+    final weight = _weightCtrl.text.trim();
+    final length = _lengthCtrl.text.trim();
+
+    final product = widget.product;
+    final unchanged =
+        minQty == product.minOrderQuantity &&
+        size == product.size &&
+        weight == product.weight &&
+        length == product.length;
+
+    if (unchanged) {
+      Get.back();
+      return;
+    }
+
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+
+    final ok = await widget.ctrl.updateProductDetails(
+      product,
+      minOrder: minQty,
+      size: size,
+      weight: weight,
+      length: length,
+    );
+
+    if (!mounted) return;
+
+    if (ok) {
+      Get.back();
+      AppPalette.snack('Saved', 'Details updated for ${product.name}');
+    } else {
+      setState(() => _saving = false);
+    }
+  }
+
+  Widget _specField(
+    AppPalette p,
+    TextEditingController controller,
+    String label,
+    String hint,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: TextField(
+        controller: controller,
+        textCapitalization: TextCapitalization.sentences,
+        maxLength: ManageProductsController.maxSpecLength,
+        onChanged: (_) => setState(() => _error = null),
+        style: p.fieldStyle,
+        cursorColor: p.text,
+        decoration: p.input(label, hint: hint, radius: 14, fill: p.tile),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // The sheet is shown above the page, so it has to listen to the theme itself.
+    return Obx(() {
+      final p = AppPalette.current();
+
+      return AnimatedPadding(
+        duration: const Duration(milliseconds: 150),
+        padding: MediaQuery.of(context).viewInsets,
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.92,
+          ),
+          decoration: p.sheetDecoration,
+          child: SafeArea(
+            top: false,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  p.sheetHandle,
+                  const SizedBox(height: 18),
+                  Text(
+                    'Edit details',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: p.text,
+                    ),
+                  ),
+                  Text(
+                    widget.product.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: p.muted),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _minCtrl,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    onChanged: (_) => setState(() => _error = null),
+                    style: p.fieldStyle,
+                    cursorColor: p.text,
+                    decoration: p.input(
+                      'Minimum order quantity',
+                      hint: 'e.g. 10 — leave empty for no minimum',
+                      radius: 14,
+                      fill: p.tile,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Customers can\'t add fewer than this to their cart.',
+                    style: TextStyle(fontSize: 12.5, color: p.muted),
+                  ),
+                  _specField(p, _sizeCtrl, 'Size', 'e.g. XL, 42, Large'),
+                  _specField(p, _weightCtrl, 'Weight', 'e.g. 2 kg'),
+                  _specField(p, _lengthCtrl, 'Length', 'e.g. 120 cm'),
+                  Text(
+                    'Size, weight and length are optional — clear a field to remove it.',
+                    style: TextStyle(fontSize: 12.5, color: p.muted),
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      _error!,
+                      style: TextStyle(
+                        color: p.danger,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: _saving ? null : _save,
+                      style: p.primaryButton(),
+                      child: _saving
+                          ? SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: p.onAccent,
+                              ),
+                            )
+                          : const Text(
+                              'Save changes',
+                              style: TextStyle(fontWeight: FontWeight.w800),
+                            ),
                     ),
                   ),
                 ],

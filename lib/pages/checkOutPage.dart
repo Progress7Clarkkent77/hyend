@@ -9,6 +9,7 @@ import 'package:hyend/controllers/orderController.dart';
 import 'package:hyend/controllers/theme_controller.dart';
 import 'package:hyend/models/productModel.dart';
 import 'package:hyend/pages/ecommerce_routes.dart';
+import 'package:hyend/pages/serviceFeeNotice.dart';
 import 'package:hyend/pages/storeUi.dart';
 import 'package:hyend/userAuth/authController.dart';
 
@@ -197,18 +198,16 @@ class _CheckoutPageState extends State<CheckoutPage>
           '   ${item.quantity} x ${formatNaira(item.product.price)} '
           '= ${formatNaira(item.total)}',
         );
-    }
 
-    final fee = cartCtrl.deliveryFee;
+      if (item.product.hasSpecs) {
+        b.writeln('   ${item.product.specsLabel}');
+      }
+    }
 
     b
       ..writeln()
-      ..writeln('Subtotal: ${formatNaira(cartCtrl.subtotal)}')
-      ..writeln(
-        'Service fee (${cartCtrl.deliveryZone.value.label}): '
-        '${fee > 0 ? formatNaira(fee) : 'Free'}',
-      )
-      ..writeln('*Total: ${formatNaira(cartCtrl.grandTotal)}*')
+      ..writeln('Delivery location: ${cartCtrl.deliveryZone.value.label}')
+      ..writeln('*Total: ${formatNaira(cartCtrl.subtotal)}*')
       ..writeln()
       ..writeln('*Delivery address:*')
       ..writeln(addressCtrl.text.trim())
@@ -1140,6 +1139,15 @@ class _CheckoutPageState extends State<CheckoutPage>
                         '${item.hasColor ? ' · ${item.colorName}' : ''}',
                         style: TextStyle(color: p.muted, fontSize: 12),
                       ),
+                      if (item.product.hasSpecs) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          item.product.specsLabel,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: p.muted, fontSize: 11.5),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -1159,46 +1167,22 @@ class _CheckoutPageState extends State<CheckoutPage>
           Divider(height: 24, color: p.border),
           _row(p, 'Subtotal', formatNaira(cartCtrl.subtotal)),
           const SizedBox(height: 12),
-          _row(
-            p,
-            'Service fee (${cartCtrl.deliveryZone.value.shortLabel})',
-            cartCtrl.deliveryFee > 0
-                ? formatNaira(cartCtrl.deliveryFee)
-                : 'Free',
-          ),
-          const SizedBox(height: 10),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: p.tile,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: p.border),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.public_rounded, size: 16, color: p.text),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Service fee covers shipping, customs clearing and '
-                    'other handling charges for your bulk order.',
-                    style: TextStyle(
-                      color: p.muted,
-                      fontSize: 11.5,
-                      height: 1.35,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          _row(p, 'Delivery location', cartCtrl.deliveryZone.value.shortLabel),
+          const SizedBox(height: 14),
+          ServiceFeeNotice(
+            tile: p.tile,
+            border: p.border,
+            text: p.text,
+            muted: p.muted,
+            accent: p.accent,
+            onAccent: p.onAccent,
+            explainWhatsApp: true,
           ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 16),
             child: Divider(height: 1, color: p.border),
           ),
-          _row(p, 'Total', formatNaira(cartCtrl.grandTotal), emphasized: true),
+          _row(p, 'Total', formatNaira(cartCtrl.subtotal), emphasized: true),
           if (withButton) ...[const SizedBox(height: 22), _checkoutActions(p)],
         ],
       ),

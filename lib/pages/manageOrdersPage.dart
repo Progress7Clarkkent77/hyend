@@ -441,6 +441,13 @@ class OrderDetailsPage extends StatelessWidget {
                           'Quantity: ${item.quantity}',
                           style: TextStyle(color: p.muted),
                         ),
+                        if (item.hasSpecs) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            item.specsLabel,
+                            style: TextStyle(color: p.muted, fontSize: 12.5),
+                          ),
+                        ],
                       ],
                     ),
                   ),

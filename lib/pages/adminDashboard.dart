@@ -20,7 +20,7 @@ class EcommerceAdminDashboardPage extends StatelessWidget {
       ? Get.find<ThemeController>()
       : Get.put(ThemeController());
 
-  static const String _logoAsset = 'assets/images/RealStore Logo.png';
+  static const String _logoAsset = 'assets/images/HyEnd.png';
 
   @override
   Widget build(BuildContext context) {
@@ -207,7 +207,7 @@ class EcommerceAdminDashboardPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      'RealStore Admin',
+                      'HyEnd Admin',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 22,

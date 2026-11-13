@@ -19,8 +19,8 @@ class EcommerceCartController extends GetxController {
   final RxList<CartItemModel> cartItems = <CartItemModel>[].obs;
   final RxBool isLoading = false.obs;
 
-  /// Where the order is being delivered. Shared by the product page, cart and
-  /// checkout so the delivery fee is always the same everywhere.
+  /// Where the order is being delivered (within or outside Enugu). Shared by
+  /// the product page, cart and checkout.
   final Rx<DeliveryZone> deliveryZone = DeliveryZone.enugu.obs;
 
   StreamSubscription<User?>? _authSub;
@@ -50,16 +50,16 @@ class EcommerceCartController extends GetxController {
   }
 
   //--------------------------------------------------
-  // WHOLESALE MINIMUM
+  // MINIMUM ORDER (set per product by the admin)
   //--------------------------------------------------
 
-  /// HyEnd sells in bulk: every add-to-cart is at least this many units.
-  static const int minOrderQty = 5;
-
-  /// Smallest quantity allowed for [product]. Normally [minOrderQty], but a
-  /// product with fewer units left in stock can only be bought as what is left.
-  int minOrderFor(ProductModel product) =>
-      product.stock > 0 ? math.min(minOrderQty, product.stock) : minOrderQty;
+  /// Smallest quantity allowed for [product]: the minimum order the admin set
+  /// when uploading it (1 when none was set). A product with fewer units left
+  /// in stock than that can only be bought as what is left.
+  int minOrderFor(ProductModel product) {
+    final min = math.max(1, product.minOrderQuantity);
+    return product.stock > 0 ? math.min(min, product.stock) : min;
+  }
 
   //--------------------------------------------------
   // HELPERS
@@ -86,25 +86,12 @@ class EcommerceCartController extends GetxController {
 
   double get subtotal => cartItems.fold(0.0, (sum, item) => sum + item.total);
 
-  /// Delivery fee if the order went to [zone]. A product is charged once,
-  /// even when it is in the cart in several colours.
-  double deliveryFeeForZone(DeliveryZone zone) {
-    final counted = <String>{};
-    var sum = 0.0;
+  /// The service fee has been removed, so nothing is added on top of the
+  /// subtotal. These two are kept (always 0 / = subtotal) only so any other
+  /// file that still reads them keeps compiling.
+  double get deliveryFee => 0.0;
 
-    for (final item in cartItems) {
-      if (counted.add(item.product.id)) {
-        sum += item.product.deliveryFeeFor(zone);
-      }
-    }
-
-    return sum;
-  }
-
-  /// Delivery fee for the currently selected zone.
-  double get deliveryFee => deliveryFeeForZone(deliveryZone.value);
-
-  double get grandTotal => subtotal + deliveryFee;
+  double get grandTotal => subtotal;
 
   //--------------------------------------------------
   // DELIVERY ZONE
@@ -197,8 +184,8 @@ class EcommerceCartController extends GetxController {
   //--------------------------------------------------
 
   /// Adds [quantity] of [product] (in the chosen [color]).
-  /// When [quantity] is omitted (the product card's add button) the minimum
-  /// order of 5 is added. A smaller [quantity] is raised to the minimum.
+  /// When [quantity] is omitted (the product card's add button) the product's
+  /// own minimum order is added. A smaller [quantity] is raised to that minimum.
   /// Returns false if nothing was added.
   ///
   /// [onAdded] fires the moment the item lands in the local cart (before the
@@ -346,7 +333,7 @@ class EcommerceCartController extends GetxController {
     final line = cartItems.firstWhereOrNull((e) => e.lineId == item.lineId);
     if (line == null) return;
 
-    // Wholesale: a line can never go below the minimum order.
+    // A line can never go below the product's minimum order.
     if (line.quantity <= minOrderFor(line.product)) return;
 
     line.quantity--;

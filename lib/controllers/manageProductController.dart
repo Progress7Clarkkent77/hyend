@@ -68,6 +68,59 @@ class ManageProductsController extends GetxController {
     }
   }
 
+  static const int maxSpecLength = 40;
+
+  /// Saves minimum order quantity (1 = no minimum) plus size, weight and
+  /// length ('' = not set) for one product. Returns true on success.
+  ///
+  /// Uses update(), so products uploaded before these fields existed get
+  /// them created the first time they are saved.
+  Future<bool> updateProductDetails(
+    ProductModel product, {
+    required int minOrder,
+    required String size,
+    required String weight,
+    required String length,
+  }) async {
+    if (minOrder < 1) {
+      Get.snackbar('Minimum order', 'Minimum order must be 1 or more');
+      return false;
+    }
+
+    if (product.stock > 0 && minOrder > product.stock) {
+      Get.snackbar(
+        'Minimum order',
+        'Minimum order ($minOrder) cannot be more than the stock '
+            '(${product.stock})',
+      );
+      return false;
+    }
+
+    final specs = {'Size': size, 'Weight': weight, 'Length': length};
+    for (final entry in specs.entries) {
+      if (entry.value.length > maxSpecLength) {
+        Get.snackbar(
+          entry.key,
+          '${entry.key} must be $maxSpecLength characters or fewer',
+        );
+        return false;
+      }
+    }
+
+    try {
+      await _productsRef.doc(product.id).update({
+        'minOrderQuantity': minOrder,
+        'size': size,
+        'weight': weight,
+        'length': length,
+      });
+      return true;
+    } catch (e) {
+      Get.snackbar('Update Failed', e.toString());
+      return false;
+    }
+  }
+
   Future<void> toggleProductStatus(ProductModel product) async {
     try {
       await _productsRef.doc(product.id).update({

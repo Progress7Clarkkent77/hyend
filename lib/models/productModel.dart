@@ -109,6 +109,18 @@ class ProductModel {
   final double deliveryFeeOutside;
 
   final int stock;
+
+  /// Smallest quantity a customer may put in the cart (1 = no minimum).
+  /// E.g. 10 means 1–9 units can't be added.
+  final int minOrderQuantity;
+
+  /// Optional specs, entered as free text so they suit any product,
+  /// e.g. size "XL" / "42", weight "2 kg", length "120 cm".
+  /// Empty string = not set.
+  final String size;
+  final String weight;
+  final String length;
+
   final bool isActive;
   final DateTime? createdAt;
 
@@ -123,6 +135,10 @@ class ProductModel {
     this.blackFridayPercent = 0,
     required this.deliveryFee,
     required this.stock,
+    this.minOrderQuantity = 1,
+    this.size = '',
+    this.weight = '',
+    this.length = '',
     required this.isActive,
     this.createdAt,
     this.imageColors = const [],
@@ -152,9 +168,19 @@ class ProductModel {
       deliveryFeeEnugu: (data['deliveryFeeEnugu'] ?? legacyFee).toDouble(),
       deliveryFeeOutside: (data['deliveryFeeOutside'] ?? legacyFee).toDouble(),
       stock: data['stock'] ?? 0,
+      // older products have no minimum, so they default to 1
+      minOrderQuantity: _readMinOrder(data['minOrderQuantity']),
+      size: (data['size'] ?? '').toString().trim(),
+      weight: (data['weight'] ?? '').toString().trim(),
+      length: (data['length'] ?? '').toString().trim(),
       isActive: data['isActive'] ?? true,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
     );
+  }
+
+  static int _readMinOrder(dynamic value) {
+    final n = (value as num?)?.toInt() ?? 1;
+    return n < 1 ? 1 : n;
   }
 
   Map<String, dynamic> toMap() {
@@ -172,6 +198,10 @@ class ProductModel {
       'deliveryFeeEnugu': deliveryFeeEnugu,
       'deliveryFeeOutside': deliveryFeeOutside,
       'stock': stock,
+      'minOrderQuantity': minOrderQuantity,
+      'size': size,
+      'weight': weight,
+      'length': length,
       'isActive': isActive,
       'createdAt': FieldValue.serverTimestamp(),
     };
@@ -197,6 +227,41 @@ class ProductModel {
 
   /// Amount saved per unit while Black Friday is live.
   double get savings => regularPrice - price;
+
+  //--------------------------------------------------
+  // MINIMUM ORDER QUANTITY
+  //--------------------------------------------------
+
+  /// This product has a minimum quantity above 1.
+  bool get hasMinOrder => minOrderQuantity > 1;
+
+  /// Quantity to use when the customer adds the product for the first time.
+  int get startingQuantity => minOrderQuantity;
+
+  /// Whether [quantity] is allowed in the cart for this product.
+  bool meetsMinOrder(int quantity) => quantity >= minOrderQuantity;
+
+  /// Message to show when a quantity below the minimum is attempted.
+  String get minOrderMessage =>
+      'Minimum order for this product is $minOrderQuantity units.';
+
+  //--------------------------------------------------
+  // SIZE / WEIGHT / LENGTH
+  //--------------------------------------------------
+
+  bool get hasSize => size.isNotEmpty;
+  bool get hasWeight => weight.isNotEmpty;
+  bool get hasLength => length.isNotEmpty;
+
+  /// At least one of size / weight / length is set.
+  bool get hasSpecs => hasSize || hasWeight || hasLength;
+
+  /// e.g. "Size: XL  •  Weight: 2 kg  •  Length: 120 cm" (only what is set).
+  String get specsLabel => [
+    if (hasSize) 'Size: $size',
+    if (hasWeight) 'Weight: $weight',
+    if (hasLength) 'Length: $length',
+  ].join('  •  ');
 
   //--------------------------------------------------
   // DELIVERY
